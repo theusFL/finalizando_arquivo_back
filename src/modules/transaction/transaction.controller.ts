@@ -8,11 +8,14 @@ import {
   Delete,
   Res,
   HttpStatus,
+  Query,
+  ValidationPipe,
 } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Response } from 'express';
+import { PaginationFilters } from './entities/pagination-filters';
 
 @Controller('transaction')
 export class TransactionController {
@@ -30,9 +33,18 @@ export class TransactionController {
   }
 
   @Get()
-  async findAll(@Res() res: Response) {
-    const transactions = await this.transactionService.findAll();
-    return res.status(HttpStatus.OK).send(transactions);
+  async findAll(
+    @Query(new ValidationPipe({ transform: true })) query: PaginationFilters,
+    @Res() res: Response,
+  ) {
+    if (!query.page) {
+      query.page = 1;
+    }
+    if (!query.perPage) {
+      query.perPage = 10;
+    }
+    const transactionsPage = await this.transactionService.findPage(query);
+    return res.status(HttpStatus.OK).send(transactionsPage);
   }
 
   @Get(':id')
