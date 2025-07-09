@@ -28,18 +28,37 @@ export class TransactionService {
 
   async findPage(filters: PaginationFilters): Promise<TransactionPageDto> {
     const total = await this.prisma.transaction.count();
+    const totalTransactions = await this.prisma.transaction.groupBy({
+      by: ['type'],
+      _sum: {
+        price: true,
+      },
+    });
+    const totalIncome =
+      totalTransactions.find((transaction) => transaction.type === 'INCOME')
+        ?._sum.price || 0;
+    const totalOutcome =
+      totalTransactions.find((transaction) => transaction.type === 'OUTCOME')
+        ?._sum.price || 0;
+    const totalBalance = totalIncome - totalOutcome;
     const pageInfo = new TransactionPageDto(
       filters.page,
       filters.perPage,
       [],
       total,
+      {
+        total: totalBalance,
+        totalIncome: totalIncome,
+        totalOutcome: totalOutcome,
+      },
     );
+
     if (total === 0 || filters.skip >= total) {
       return pageInfo;
     }
 
     const transactions = await this.prisma.transaction.findMany({
-      orderBy: { data: 'desc' },
+      orderBy: { createdAt: 'desc' },
       skip: filters.skip,
       take: filters.take,
     });
